@@ -11,12 +11,12 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     <View style={styles.container}>
       <Text style={styles.title}>Bienvenue aux Fléchettes 🎯</Text>
       <BasicButton
-        textValue="Mode Classique"
+        textValue="Jeu Classique"
         onPress={() => navigation.navigate("Setup Game", { mode: "Classique" })}
       />
       <BasicButton
-        textValue="Mode 301"
-        onPress={() => navigation.navigate("Setup Game", { mode: "301" })}
+        textValue="301 - 501"
+        onPress={() => navigation.navigate("Setup Game", { mode: "301 - 501" })}
       />
       <BasicButton
         textValue="Paramètres"

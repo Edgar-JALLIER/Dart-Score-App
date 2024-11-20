@@ -5,10 +5,11 @@ import HomeScreen from "../screens/HomeScreen";
 import GameScreen from "../screens/GameScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import SetupGameScreen from "../screens/SetupGameScreen";
+import { Player } from "../types/game";
 
 export type RootStackParamList = {
   Home: undefined;
-  Game: { mode: string; players: string[] };
+  Game: { mode: string; players: Player[] };
   Settings: undefined;
   "Setup Game": { mode: string };
 };
