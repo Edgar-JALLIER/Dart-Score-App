@@ -30,6 +30,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    rowGap: 30,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f8f9fa",

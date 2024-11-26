@@ -18,7 +18,6 @@ const BasicButton: React.FC<BasicButtonProps> = ({ textValue, onPress }) => {
 
 const styles = StyleSheet.create({
   buttonContainer: {
-    marginTop: 20,
     alignItems: "center",
     width: "100%",
   },

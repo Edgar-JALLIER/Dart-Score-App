@@ -10,6 +10,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   ScrollView,
+  Platform,
 } from "react-native";
 import { StackScreenProps } from "@react-navigation/stack"; // Importez le bon type
 import AddNewPlayerButton from "../components/Button/AddNewPlayerButton";
@@ -18,20 +19,28 @@ import { Ionicons } from "@expo/vector-icons";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import BasicButton from "../components/Button/BasicButton";
 import { GameType, Player } from "../types/game";
+import LineSeparator from "../components/ui/LineSeparator";
 
 type Props = StackScreenProps<RootStackParamList, "Setup Game">;
 
 const SetupGameScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { mode } = route.params;
-  const [gameType, setGameType] = useState<GameType>("501");
+  const [gameType, setGameType] = useState<GameType>({
+    id: "501",
+    name: "501",
+    initialScore: 501,
+    requireDoubleToStart: false,
+    requireDoubleToEnd: false,
+    maxThrowsPerTurn: 3,
+  });
   const [numPlayers, setNumPlayers] = useState<number>(2);
   const [players, setPlayers] = useState<Player[]>(
     new Array(2).fill(null).map((_, index) => ({
       id: uuid.v4(),
       name: "",
-      score: parseInt(gameType),
+      score: gameType.initialScore,
       throws: [],
       average: 0,
+      hasStarted: !gameType.requireDoubleToStart,
     }))
   );
 
@@ -39,7 +48,8 @@ const SetupGameScreen: React.FC<Props> = ({ route, navigation }) => {
   useEffect(() => {
     const updatedPlayers = players.map((player) => ({
       ...player,
-      score: parseInt(gameType),
+      score: gameType.initialScore,
+      hasStarted: !gameType.requireDoubleToStart,
     }));
     setPlayers(updatedPlayers);
   }, [gameType]);
@@ -49,9 +59,10 @@ const SetupGameScreen: React.FC<Props> = ({ route, navigation }) => {
     const newPlayer: Player = {
       id: uuid.v4(),
       name: "",
-      score: parseInt(gameType),
+      score: gameType.initialScore,
       throws: [],
       average: 0,
+      hasStarted: !gameType.requireDoubleToStart,
     };
     setPlayers([...players, newPlayer]);
     setNumPlayers(numPlayers + 1);
@@ -83,46 +94,104 @@ const SetupGameScreen: React.FC<Props> = ({ route, navigation }) => {
       return;
     }
 
-    navigation.navigate("Game", { players: updatedPlayers, mode });
+    navigation.navigate("Game", { mode: gameType, players: updatedPlayers });
   };
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      // behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-        <SafeAreaView style={{ flex: 1 }}>
-          <Text style={styles.title}>Mode de jeu</Text>
-
-          {/* Section pour les boutons de type de jeu */}
-          <View style={styles.section}>
-            <TouchableOpacity
-              style={[
-                styles.gameTypeButton,
-                gameType === "501" && styles.selectedButton,
-              ]}
-              onPress={() => setGameType("501")}
-            >
-              <Text style={styles.buttonText}>501</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.gameTypeButton,
-                gameType === "301" && styles.selectedButton,
-              ]}
-              onPress={() => setGameType("301")}
-            >
-              <Text style={styles.buttonText}>301</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Liste des joueurs avec défilement possible */}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <SafeAreaView style={styles.safeArea}>
+          {/* Section défilable */}
           <ScrollView
-            contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
-            keyboardShouldPersistTaps="handled" // Permet au clavier de rester ouvert si un élément est cliqué
+            style={styles.scrollContainer}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
           >
+            {/* Options de jeu */}
+            <LineSeparator text="Options de jeu" />
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={[
+                  styles.gameTypeButton,
+                  gameType.name === "501" && styles.selectedButton,
+                ]}
+                onPress={() =>
+                  setGameType({ ...gameType, name: "501", initialScore: 501 })
+                }
+              >
+                <Text style={styles.buttonText}>501</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.gameTypeButton,
+                  gameType.name === "301" && styles.selectedButton,
+                ]}
+                onPress={() =>
+                  setGameType({ ...gameType, name: "301", initialScore: 301 })
+                }
+              >
+                <Text style={styles.buttonText}>301</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={[
+                  styles.gameTypeButton,
+                  !gameType.requireDoubleToStart && styles.selectedButton,
+                ]}
+                onPress={() =>
+                  setGameType({ ...gameType, requireDoubleToStart: false })
+                }
+              >
+                <Text style={styles.buttonText}>Entrée simple</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.gameTypeButton,
+                  gameType.requireDoubleToStart && styles.selectedButton,
+                ]}
+                onPress={() =>
+                  setGameType({ ...gameType, requireDoubleToStart: true })
+                }
+              >
+                <Text style={styles.buttonText}>Entrée double</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={[
+                  styles.gameTypeButton,
+                  !gameType.requireDoubleToEnd && styles.selectedButton,
+                ]}
+                onPress={() =>
+                  setGameType({ ...gameType, requireDoubleToEnd: false })
+                }
+              >
+                <Text style={styles.buttonText}>Sortie simple</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.gameTypeButton,
+                  gameType.requireDoubleToEnd && styles.selectedButton,
+                ]}
+                onPress={() =>
+                  setGameType({ ...gameType, requireDoubleToEnd: true })
+                }
+              >
+                <Text style={styles.buttonText}>Sortie double</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Joueurs */}
+            <LineSeparator text="Joueurs" />
             {players.map((player, index) => (
               <View style={styles.playerRow} key={player.id}>
                 <TextInput
@@ -144,8 +213,10 @@ const SetupGameScreen: React.FC<Props> = ({ route, navigation }) => {
             <AddNewPlayerButton onAddPlayer={addNewPlayer} />
           </ScrollView>
 
-          {/* Bouton pour démarrer le jeu */}
-          <BasicButton textValue="Lancer le jeu" onPress={startGame} />
+          {/* Bouton fixe en bas de l'écran */}
+          <View style={styles.footer}>
+            <BasicButton textValue="Lancer le jeu" onPress={startGame} />
+          </View>
         </SafeAreaView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
@@ -155,39 +226,28 @@ const SetupGameScreen: React.FC<Props> = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
     backgroundColor: "#f7f7f7",
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  input: {
+  safeArea: {
     flex: 1,
-    height: 50,
-    borderColor: "#ccc",
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingLeft: 15,
-    fontSize: 18,
-    backgroundColor: "#fff",
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 100, // Laisser de l'espace pour le bouton en bas
   },
   section: {
-    flex: 0,
-    width: "100%",
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 30,
-    columnGap: 20,
+    marginBottom: 20,
   },
   gameTypeButton: {
-    backgroundColor: "#b5b7b3",
     width: "47%",
+    backgroundColor: "#b5b7b3",
     padding: 12,
     borderRadius: 5,
-    marginBottom: 10,
     alignItems: "center",
   },
   selectedButton: {
@@ -195,28 +255,33 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: "white",
-    fontSize: 18,
     fontWeight: "bold",
-  },
-  deleteInput: {
-    paddingLeft: 10,
   },
   playerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 15, // Plus d’espace entre les lignes
+    marginBottom: 15,
   },
-  deleteButton: {
-    marginLeft: 10,
-    backgroundColor: "red",
-    width: 50,
+  input: {
+    flex: 1,
     height: 50,
-    justifyContent: "center",
-    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    paddingHorizontal: 10,
   },
-  deleteIcon: {
-    color: "#fff", // Couleur blanche pour l'icône
-    fontSize: 28, // Icône plus grande
+  deleteInput: {
+    marginLeft: 10,
+  },
+  footer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#f7f7f7",
+    padding: 20,
+    borderTopWidth: 1,
+    borderColor: "#ccc",
   },
 });
 
