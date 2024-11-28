@@ -2,9 +2,23 @@ export type Player = {
   id: string;
   name: string;
   score: number;
-  throws: number[];
-  average: number;
-  hasStarted: boolean;
+  throws: Throw[];
+  average?: number;
+  hasStarted?: boolean;
+};
+
+export type Throw = {
+  round: number;
+  points: number;
+};
+
+export type GameState = {
+  gameType: GameType;
+  players: Player[];
+  currentRound: number;
+  currentPlayerIndex: number;
+  currentThrow?: number;
+  isFinished: boolean;
 };
 
 export type GameType = {
@@ -16,10 +30,18 @@ export type GameType = {
   maxThrowsPerTurn: number; // Nombre de lancers par tour
 };
 
-export type GameState = {
-  players: Player[];
-  currentPlayer: number;
-  currentThrow: number;
-  gameType: GameType;
-  isFinished: boolean;
+export type Action =
+  | { type: "UNDO_LAST_THROW" }
+  | { type: "SUBMIT_SCORE"; payload: { points: number } }
+  | { type: "NEXT_PLAYER"; payload: { maxThrowsPerTurn: number } }
+  | { type: "INCREMENT_THROW" }
+  | { type: "SET_PLAYER_SCORE"; playerIndex: number; score: number };
+
+export const initialState: GameState = {
+  players: [
+    { id: "1", name: "Player 1", score: 501, throws: [] },
+    { id: "2", name: "Player 2", score: 501, throws: [] },
+  ],
+  currentPlayerIndex: 0,
+  isFinished: false,
 };

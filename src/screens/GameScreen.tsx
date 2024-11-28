@@ -1,103 +1,176 @@
-import React, { useState } from "react";
+import React, { useEffect, useReducer } from "react";
 import {
   View,
-  ScrollView,
   Text,
   TouchableOpacity,
   StyleSheet,
+  Alert,
+  SafeAreaView,
+  StatusBar,
+  BackHandler,
 } from "react-native";
-import { ScoreInput } from "../components/InGame/ScoreInput";
+import ScoreInput from "../components/InGame/ScoreInput";
 import { PlayerScore } from "../components/ProfilPlayer/PlayerScore";
-import { GameState } from "../types/game";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
+import { HeaderBackButton } from "@react-navigation/elements";
+import { gameReducer } from "../types/gameReducer";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Game">;
 
 const GameScreen: React.FC<Props> = ({ route, navigation }) => {
-  const [gameState, setGameState] = useState<GameState>({
+  const [state, dispatch] = useReducer(gameReducer, {
     players: route.params?.players || [],
-    currentPlayer: 0,
-    gameType: route.params?.gameType,
+    currentRound: 1,
+    currentPlayerIndex: 0,
+    currentThrow: 0,
+    gameType: route.params.mode,
     isFinished: false,
   });
 
-  const handleScore = (score: number) => {
-    // Mise à jour fonctionnelle de l'état
-    setGameState((prevState) => {
-      // On clone les joueurs pour ne pas modifier directement l'état
-      const newPlayers = [...prevState.players];
-      const currentPlayer = { ...newPlayers[prevState.currentPlayer] }; // Clone le joueur actuel
-
-      const newScore = currentPlayer.score - score;
-      if (newScore < 0) return prevState; // Ne pas mettre à jour si le score devient négatif
-
-      // On met à jour le score et les autres propriétés de façon immuable
-      currentPlayer.throws = [...currentPlayer.throws, score]; // Ajouter le score à la liste des lancers
-      currentPlayer.score = newScore;
-      currentPlayer.average =
-        currentPlayer.throws.reduce((a, b) => a + b, 0) /
-        currentPlayer.throws.length;
-
-      // Mettre à jour la liste des joueurs avec le joueur modifié
-      newPlayers[prevState.currentPlayer] = currentPlayer;
-
-      // Vérifier si la partie est terminée
-      if (newScore === 0) {
-        return { ...prevState, players: newPlayers, isFinished: true }; // Terminer la partie
-      }
-
-      // Passer au joueur suivant
-      const nextPlayer =
-        (prevState.currentPlayer + 1) % prevState.players.length;
-      return {
-        ...prevState,
-        players: newPlayers,
-        currentPlayer: nextPlayer,
-      };
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      handleBackPress
+    );
+    return () => backHandler.remove(); // Nettoie l'écouteur lorsque le composant est démonté
+  }, []);
+  // Gestion de la touche retour pour quitter la partie
+  const handleBackPress = () => {
+    Alert.alert(
+      "Quitter la partie",
+      "Êtes-vous sur de vouloir quitter la partie ?",
+      [
+        { text: "Annuler" },
+        {
+          text: "Oui",
+          onPress: () => navigation.goBack(),
+        },
+      ]
+    );
+    return true;
+  };
+  const handleScoreSubmit = (
+    points: number,
+    isDouble: boolean,
+    isTriple: boolean
+  ) => {
+    if (points === -1) {
+      dispatch({ type: "UNDO_LAST_THROW" });
+      return;
+    }
+    // Vous pouvez maintenant utiliser isDouble et isTriple ici pour d'autres logiques si nécessaire
+    dispatch({ type: "SUBMIT_SCORE", payload: { points } });
+    dispatch({
+      type: "NEXT_PLAYER",
+      payload: { maxThrowsPerTurn: state.gameType.maxThrowsPerTurn },
     });
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {gameState.players.map((player, index) => (
-          <PlayerScore
-            key={player.id}
-            player={player}
-            isActive={index === gameState.currentPlayer}
-          />
-        ))}
-      </ScrollView>
+    <>
+      <StatusBar backgroundColor="#333" barStyle={"light-content"} />
+      <SafeAreaView style={styles.safeAreaContainer}>
+        <View style={styles.container}>
+          <View style={styles.titleContainer}>
+            <HeaderBackButton onPress={handleBackPress} tintColor="white" />
+            <Text style={styles.titleText}>
+              {state.gameType.name} -{" "}
+              {state.gameType.requireDoubleToStart
+                ? "Double In"
+                : "Straight In"}{" "}
+              /{" "}
+              {state.gameType.requireDoubleToEnd
+                ? "Double Out"
+                : "Straight Out"}{" "}
+            </Text>
+            <Text style={styles.titleIcons}>🎯</Text>
+          </View>
+          <View style={styles.viewRound}>
+            <Text style={styles.titleRound}>Round {state.currentRound}</Text>
+          </View>
+          <PlayerScore playerScoreGame={state} />
 
-      {!gameState.isFinished ? (
-        <ScoreInput onScoreSubmit={handleScore} />
-      ) : (
-        <View style={styles.winnerContainer}>
-          <Text style={styles.winnerText}>
-            🎯 {gameState.players[gameState.currentPlayer].name} a gagné! 🎯
-          </Text>
-          <TouchableOpacity
-            style={styles.homeButton}
-            onPress={() => navigation.navigate("Home")}
-          >
-            <Text style={styles.buttonText}>Retour à l'accueil</Text>
-          </TouchableOpacity>
+          {!state.isFinished ? (
+            <ScoreInput onScoreSubmit={handleScoreSubmit} />
+          ) : (
+            <View style={styles.winnerContainer}>
+              <Text style={styles.winnerText}>
+                🎯 {state.players[state.currentPlayerIndex].name} a gagné! 🎯
+              </Text>
+              <TouchableOpacity
+                style={styles.homeButton}
+                onPress={() => navigation.navigate("Home")}
+              >
+                <Text style={styles.buttonText}>Retour à l'accueil</Text>
+              </TouchableOpacity>
+
+              {/* Bouton pour voir les statistiques */}
+              <TouchableOpacity
+                style={styles.homeButton}
+                onPress={() =>
+                  navigation.navigate("Stats", {
+                    mode: state.gameType,
+                    players: state.players,
+                  })
+                }
+              >
+                <Text style={styles.buttonText}>Voir les statistiques</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
-      )}
-    </View>
+      </SafeAreaView>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
+  safeAreaContainer: {
+    flex: 1,
+    backgroundColor: "#333",
+  },
   container: {
     flex: 1,
     backgroundColor: "#1a1a1a",
-    padding: 20,
+    padding: 0,
   },
-  scrollView: {
-    flex: 1,
-    marginBottom: 16,
+  titleContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#333",
+  },
+  titleIcons: {
+    fontSize: 18,
+    padding: 10,
+  },
+  titleText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
+    paddingHorizontal: 0,
+    paddingVertical: 18,
+    margin: 0,
+  },
+  viewRound: {
+    height: 30,
+    alignItems: "center",
+    margin: 10,
+  },
+  titleRound: {
+    color: "white",
+    height: "100%",
+    backgroundColor: "#6200ea",
+    fontSize: 16,
+    width: "30%", // Limite la largeur du texte
+    fontWeight: "bold",
+    textAlign: "center", // Centrer le texte horizontalement
+    borderRadius: 5,
+    paddingHorizontal: 0,
+    paddingVertical: 5,
+    margin: 0,
   },
   winnerContainer: {
     width: "100%",
@@ -111,7 +184,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   homeButton: {
-    backgroundColor: "#2196F3",
+    backgroundColor: "#6200ea",
     padding: 12,
     borderRadius: 4,
     marginTop: 16,
