@@ -26,8 +26,9 @@ const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     currentThrow: 0,
     gameType: route.params.mode,
     isFinished: false,
+    winner: null,
   });
-
+  console.log("STATE in GAME", state);
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
@@ -59,8 +60,12 @@ const GameScreen: React.FC<Props> = ({ route, navigation }) => {
       dispatch({ type: "UNDO_LAST_THROW" });
       return;
     }
+
     // Vous pouvez maintenant utiliser isDouble et isTriple ici pour d'autres logiques si nécessaire
-    dispatch({ type: "SUBMIT_SCORE", payload: { points } });
+    dispatch({ type: "SUBMIT_SCORE", payload: { points, isDouble, isTriple } });
+    if (state.isFinished) {
+      return;
+    }
     dispatch({
       type: "NEXT_PLAYER",
       payload: { maxThrowsPerTurn: state.gameType.maxThrowsPerTurn },

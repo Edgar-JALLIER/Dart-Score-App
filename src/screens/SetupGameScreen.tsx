@@ -33,68 +33,83 @@ const SetupGameScreen: React.FC<Props> = ({ route, navigation }) => {
     maxThrowsPerTurn: 3,
   });
   const [numPlayers, setNumPlayers] = useState<number>(2);
-  const [players, setPlayers] = useState<Player[]>(
-    new Array(2).fill(null).map((_, index) => ({
-      id: uuid.v4(),
-      name: "",
-      score: gameType.initialScore,
-      throws: [],
-      average: 0,
-      hasStarted: !gameType.requireDoubleToStart,
-    }))
-  );
+  const [players, setPlayers] = useState<Player[]>([]);
 
-  // Mettre à jour les scores des joueurs chaque fois que le gameType change
+  const generatePlayers = (
+    numPlayers: number,
+    initialScore: number,
+    requireDoubleToStart: boolean
+  ): Player[] => {
+    console.log("requireDOUBLE", requireDoubleToStart);
+    const updatedPlayers = Array.from({ length: numPlayers }, (_, index) => {
+      const existingPlayer = players[index];
+      return existingPlayer
+        ? new Player(
+            existingPlayer.id,
+            existingPlayer.name, // Conserver le nom existant
+            initialScore, // Mettre à jour le score initial
+            !requireDoubleToStart
+          )
+        : new Player(
+            uuid.v4(),
+            "", // Nouveau joueur avec nom vide par défaut
+            initialScore,
+            !requireDoubleToStart
+          );
+    });
+
+    return updatedPlayers;
+  };
+
   useEffect(() => {
-    const updatedPlayers = players.map((player) => ({
-      ...player,
-      score: gameType.initialScore,
-      hasStarted: !gameType.requireDoubleToStart,
-    }));
-    setPlayers(updatedPlayers);
-  }, [gameType]);
+    const initialPlayers = generatePlayers(
+      numPlayers,
+      gameType.initialScore,
+      gameType.requireDoubleToStart
+    );
+    setPlayers(initialPlayers);
+  }, [numPlayers, gameType]);
 
   // Ajout d'un nouveau joueur
   const addNewPlayer = () => {
-    const newPlayer: Player = {
-      id: uuid.v4(),
-      name: "",
-      score: gameType.initialScore,
-      throws: [],
-      average: 0,
-      hasStarted: !gameType.requireDoubleToStart,
-    };
-    setPlayers([...players, newPlayer]);
-    setNumPlayers(numPlayers + 1);
+    setNumPlayers((prev) => prev + 1);
   };
 
-  // Modification du nom d'un joueur
+  // Modifier le nom d'un joueur
   const handlePlayerNameChange = (name: string, index: number) => {
-    const updatedPlayers = [...players];
-    updatedPlayers[index].name = name;
-    setPlayers(updatedPlayers);
+    setPlayers((prevPlayers) =>
+      prevPlayers.map((player, i) =>
+        i === index
+          ? new Player(player.id, name, player.score, player.hasStarted)
+          : player
+      )
+    );
   };
 
   // Suppression d’un joueur
   const deletePlayer = (index: number) => {
-    const updatedPlayers = players.filter((_, i) => i !== index);
-    setPlayers(updatedPlayers);
-    setNumPlayers(updatedPlayers.length);
+    setPlayers((prevPlayers) => prevPlayers.filter((_, i) => i !== index));
+    setNumPlayers((prev) => prev - 1);
   };
 
   // Validation et démarrage du jeu
   const startGame = () => {
-    const updatedPlayers = players.map((player, index) => ({
-      ...player,
-      name: player.name.trim() === "" ? `Joueur ${index + 1}` : player.name,
-    }));
-
-    if (updatedPlayers.length < 2) {
+    const validatedPlayers = players.map(
+      (player, index) =>
+        new Player(
+          player.id,
+          player.name.trim() === "" ? `Joueur ${index + 1}` : player.name,
+          player.score,
+          player.hasStarted
+        )
+    );
+    console.log("player", validatedPlayers);
+    if (validatedPlayers.length < 2) {
       alert("Veuillez ajouter au moins deux joueurs.");
       return;
     }
 
-    navigation.navigate("Game", { mode: gameType, players: updatedPlayers });
+    navigation.navigate("Game", { mode: gameType, players: validatedPlayers });
   };
 
   return (
