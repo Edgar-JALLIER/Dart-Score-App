@@ -3,11 +3,20 @@ import {
   handleNextPlayer,
   handleSubmitScore,
   handleUndoLastThrow,
-} from "../functions/functionsInGame/501/allFunctions";
-import { Action, GameState } from "./game";
+} from "../utils/501/allFunctions";
+import { GameState } from "./game";
+import { GameAction } from "../interfaces/gameActions";
 
-export const gameReducer = (state: GameState, action: Action): GameState => {
+export const gameReducer = (
+  state: GameState,
+  action: GameAction
+): GameState => {
   switch (action.type) {
+    case "SET_SUGGESTION":
+      return {
+        ...state,
+        suggestion: action.suggestion, // Mettre à jour la suggestion dans l'état
+      };
     case "SUBMIT_SCORE":
       return handleSubmitScore(state, action);
 

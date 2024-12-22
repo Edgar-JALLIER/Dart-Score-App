@@ -1,51 +1,81 @@
-import { Action, GameState } from "../../../types/game";
+import { GameState } from "../../types/game";
+import { GameAction } from "../../interfaces/gameActions";
+import {
+  checkValidThrow,
+  checkVictory,
+} from "../../functions/closestPlayerToWin";
+import { applyThrowActions } from "./bustedActions";
 
 export const handleSubmitScore = (
   state: GameState,
-  action: Extract<Action, { type: "SUBMIT_SCORE" }>
+  action: Extract<GameAction, { type: "SUBMIT_SCORE" }>
 ): GameState => {
-  const { points, isDouble } = action.payload;
+  const { points, isDouble, isTriple } = action.payload;
   const players = [...state.players];
   const currentPlayer = players[state.currentPlayerIndex];
 
-  // Vérifier si le score devient négatif après soustraction
-  if (currentPlayer.score - points < 0) {
-    console.log("Lancer invalide : dépassement du score.");
-    return state; // Annule l'action
-  }
+  // // Recalculer la suggestion
+  // const throwsLeft =
+  //   state.gameType.maxThrowsPerTurn -
+  //   currentPlayer.throws.filter((t) => t.round === state.currentRound).length;
+  // const suggestion = findSuggestion(currentPlayer.score, throwsLeft);
 
-  // Règle : Commencer par un double
-  if (state.gameType.requireDoubleToStart && !currentPlayer.hasStarted) {
-    if (!isDouble) {
-      console.log("Le joueur doit commencer par un double.");
-      currentPlayer.addThrow(state.currentRound, 0);
-      return state; // Lancer invalide, pas de modification d'état
+  const throwResult = checkValidThrow(
+    points,
+    isDouble,
+    isTriple,
+    currentPlayer,
+    state.gameType
+  );
+
+  if (!throwResult.isValid) {
+    currentPlayer.addThrow(
+      state.currentRound,
+      points,
+      isDouble,
+      isTriple,
+      false
+    ); // Ajouter un lancer invalide
+    if (throwResult.actions) {
+      return applyThrowActions(currentPlayer, throwResult.actions, state);
     }
-    currentPlayer.hasStarted = true; // Valider que le joueur a commencé
+    return state; // Lancer invalide, pas de modification d'état
   }
 
-  // Ajouter le lancer au joueur
-  currentPlayer.addThrow(state.currentRound, points);
-
-  // Vérifier si la partie est terminée (ajustez selon vos règles)
-  if (currentPlayer.score === 0 && !state.gameType.requireDoubleToEnd) {
-    return { ...state, players, isFinished: true };
-    // currentPlayer.completeThrows(
-    //   state.currentRound,
-    //   state.gameType.maxThrowsPerTurn
-    // );
+  if (throwResult.isValid) {
+    // Si le lancé est validé alors le joueur à valider le doubleIn
+    if (!currentPlayer.hasStarted) {
+      currentPlayer.hasStarted = true; // Valider que le joueur a commencé
+    }
+    currentPlayer.addThrow(
+      state.currentRound,
+      points,
+      isDouble,
+      isTriple,
+      true
+    ); // Ajouter un lancer valide
   }
+
+  // Gérer le lancer (valide ou invalide)
+  // let newState = handleThrow(state, points, isDouble, isTriple);
+
+  let newState = checkVictory(state, currentPlayer);
 
   // Mettre à jour l'état des joueurs
   players[state.currentPlayerIndex] = currentPlayer;
 
+  // Si le jeu est terminé, retourne immédiatement l'état
+  if (newState.isFinished) {
+    return newState;
+  }
+
   // Retourner le nouvel état
-  return { ...state, players };
+  return { ...newState, players };
 };
 
 export const handleNextPlayer = (
   state: GameState,
-  action: Extract<Action, { type: "NEXT_PLAYER" }>
+  action: Extract<GameAction, { type: "NEXT_PLAYER" }>
 ): GameState => {
   const { maxThrowsPerTurn } = action.payload;
   const players = [...state.players];
@@ -58,7 +88,12 @@ export const handleNextPlayer = (
   let nextPlayerIndex = state.currentPlayerIndex;
   let nextRound = state.currentRound;
 
+  if (state.isFinished) {
+    return state; // Pas de transition si la partie est finie
+  }
   if (throwsThisTurn >= maxThrowsPerTurn && !state.isFinished) {
+    // Enregistrer le score restant du joueur à la fin de ce round
+    currentPlayer.recordRoundScore();
     nextPlayerIndex = (state.currentPlayerIndex + 1) % players.length;
     if (nextPlayerIndex === 0) {
       nextRound += 1; // Nouveau round après un cycle complet
@@ -104,6 +139,10 @@ export const handleUndoLastThrow = (state: GameState): GameState => {
         state.gameType.initialScore,
         state.gameType.requireDoubleToStart
       );
+      // Supprimer le score de round lorsque l'on revient au joueur précédent
+      if (currentThrows.length === state.gameType.maxThrowsPerTurn) {
+        currentPlayer.deleteLastRoundScore();
+      }
       // Sortir de la boucle après avoir annulé un lancer
       break;
     } else {

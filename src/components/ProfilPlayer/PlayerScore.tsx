@@ -77,6 +77,9 @@ export function PlayerScore({ playerScoreGame }: PlayerScoreProps) {
                 ? "A commencé à scorer"
                 : "Pas encore commencé"}
             </Text>
+            <Text style={styles.playerAverage}>
+              {player.scoresByRound.map((score, index) => score + " - ")}
+            </Text>
           </View>
         );
       })}

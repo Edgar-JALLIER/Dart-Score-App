@@ -12,7 +12,10 @@ const ScoreInput: React.FC<ScoreInputProps> = ({ onScoreSubmit }) => {
   const [isDouble, setIsDouble] = useState<boolean>(false);
   const [isTriple, setIsTriple] = useState<boolean>(false);
 
-  const numbers = [...Array(20).keys()].map((n) => n + 1).concat(25, 0); // Tableau unique [1, 2, ..., 20, 25, 0]
+  const numbers = [...Array(20).keys()]
+    .map((n) => n + 1)
+    .concat(25, 0)
+    .filter((num) => !(isTriple && num === 25)); // exclure 25 si Triple est activé
   const columnsPerRow = 6; // Nombre de colonnes par ligne
 
   // Diviser les nombres en lignes
@@ -86,7 +89,9 @@ const ScoreInput: React.FC<ScoreInputProps> = ({ onScoreSubmit }) => {
             ]}
             onPress={button.action}
           >
-            <Text style={styles.keyText}>{button.label}</Text>
+            <Text style={[styles.keyText, button.active && styles.activeText]}>
+              {button.label}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -127,6 +132,9 @@ const styles = StyleSheet.create({
   },
   activeButton: {
     backgroundColor: "#ffcc00",
+  },
+  activeText: {
+    color: "#000",
   },
 });
 

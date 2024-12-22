@@ -3,6 +3,7 @@ export class Player {
   name: string;
   score: number;
   throws: Throw[];
+  scoresByRound: number[];
   average?: number;
   hasStarted: boolean;
 
@@ -16,20 +17,31 @@ export class Player {
     this.name = name;
     this.score = initialScore;
     this.throws = [];
+    this.scoresByRound = [];
     this.average = 0;
     this.hasStarted = requireDoubleToStart;
   }
 
-  addThrow(round: number, points: number): void {
-    this.throws.push({ round, points });
-    this.score -= points; // Le score diminue avec chaque lancer
+  addThrow(
+    round: number,
+    points: number,
+    isDouble: boolean,
+    isTriple: boolean,
+    isValid: boolean
+  ): void {
+    this.throws.push({ round, points, isDouble, isTriple, isValid });
+
+    this.score = isValid ? this.score - points : this.score; // Déduire les points si le lancer est valide
     this.updateAverage();
   }
 
   removeLastThrow(initialScore: number, doubleIn: boolean): Throw | undefined {
     const lastThrow = this.throws.pop();
     if (lastThrow) {
-      this.score += lastThrow.points; // Réajuster le score en annulant le dernier lancer
+      // Réajuster le score uniquement si le lancer était valide
+      if (lastThrow.isValid) {
+        this.score = this.calculateScoreFromThrows(initialScore);
+      }
       this.updateAverage();
       if (this.score === initialScore && doubleIn) {
         this.hasStarted = false;
@@ -38,36 +50,61 @@ export class Player {
     return lastThrow;
   }
 
-  getRoundScore(round: number): number {
+  calculateScoreFromThrows(initialScore: number): number {
     return this.throws
-      .filter((t) => t.round === round)
-      .reduce((acc, t) => acc + t.points, 0);
+      .filter((throwData) => throwData.isValid) // Ne prendre en compte que les lancers valides
+      .reduce((acc, t) => acc - t.points, initialScore);
+  }
+
+  recordRoundScore(): void {
+    this.scoresByRound.push(this.score); // Enregistrer le score final du round
+  }
+
+  deleteLastRoundScore(): void {
+    this.scoresByRound.pop(); // Supprimer le score du dernier round
+  }
+
+  calculateScore(initialScore: number): void {
+    this.score = this.throws
+      .filter((t) => t.isValid) // Ne considère que les lancers valides
+      .reduce((acc, t) => acc - t.points, initialScore);
   }
 
   completeThrows(round: number, maxThrowsPerTurn: number): void {
     const throwsInRound = this.throws.filter((t) => t.round === round);
     const remainingThrows = maxThrowsPerTurn - throwsInRound.length;
     for (let i = 0; i < remainingThrows; i++) {
-      this.addThrow(round, 0); // Ajouter des lancers de 0 pour compléter
+      this.addThrow(round, 0, false, false, true); // Ajouter des lancers de 0 pour compléter
     }
+    this.recordRoundScore(); // Enregistrer le score final du round
+  }
+
+  cancelRoundScore(): void {
+    // Réinitialiser le score au début du round
+    this.score = this.scoresByRound.pop() ?? this.score;
   }
 
   // Calculer la moyenne des lancers
   private updateAverage(): void {
-    const totalPoints = this.throws.reduce(
+    // Filtrer uniquement les lancers valides
+    const validThrows = this.throws.filter((throwData) => throwData.isValid);
+
+    const totalPoints = validThrows.reduce(
       (sum, throwData) => sum + throwData.points,
       0
     );
+
     this.average =
-      this.throws.length > 0 ? totalPoints / this.throws.length : 0;
+      validThrows.length > 0 ? totalPoints / validThrows.length : 0;
   }
 }
 
 export type Throw = {
   round: number;
   points: number;
-  isDouble?: boolean;
-  isTriple?: boolean;
+  isDouble: boolean;
+  isTriple: boolean;
+  isValid?: boolean;
 };
 
 export type GameState = {
@@ -78,6 +115,7 @@ export type GameState = {
   currentThrow?: number;
   isFinished: boolean;
   winner: Player | null;
+  suggestion: Suggestion[] | null; // Nouvelle propriété
 };
 
 export type GameType = {
@@ -90,15 +128,12 @@ export type GameType = {
   maxRounds?: number; // Nombre de rounds avant la fin du jeu
 };
 
-export type Action =
-  | {
-      type: "SUBMIT_SCORE";
-      payload: { points: number; isDouble?: boolean; isTriple?: boolean };
-    }
-  | { type: "UNDO_LAST_THROW" }
-  | { type: "NEXT_PLAYER"; payload: { maxThrowsPerTurn: number } }
-  | { type: "INCREMENT_THROW" }
-  | { type: "SET_PLAYER_SCORE"; playerIndex: number; score: number }
-  | {
-      type: "CHECK_GAME_FINISHED";
-    };
+export type ThrowAction =
+  | "SKIP_TURN" // Renommer pour plus de clarté
+  | "ROLLBACK_ROUND" // Annuler tous les lancers du round
+  | "RESTORE_PREVIOUS_SCORE"; // Réinitialiser le score au précédent
+
+export type Suggestion = {
+  type: "S" | "D" | "T"; // Single, Double, Triple
+  value: number; // La valeur de la cible (1 à 20 ou 25 pour le bullseye)
+};

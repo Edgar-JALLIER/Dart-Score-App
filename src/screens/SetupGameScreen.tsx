@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -35,12 +35,13 @@ const SetupGameScreen: React.FC<Props> = ({ route, navigation }) => {
   const [numPlayers, setNumPlayers] = useState<number>(2);
   const [players, setPlayers] = useState<Player[]>([]);
 
+  const scrollViewRef = useRef<ScrollView>(null);
+
   const generatePlayers = (
     numPlayers: number,
     initialScore: number,
     requireDoubleToStart: boolean
   ): Player[] => {
-    console.log("requireDOUBLE", requireDoubleToStart);
     const updatedPlayers = Array.from({ length: numPlayers }, (_, index) => {
       const existingPlayer = players[index];
       return existingPlayer
@@ -73,6 +74,13 @@ const SetupGameScreen: React.FC<Props> = ({ route, navigation }) => {
   // Ajout d'un nouveau joueur
   const addNewPlayer = () => {
     setNumPlayers((prev) => prev + 1);
+    scrollToBottom();
+  };
+
+  const scrollToBottom = () => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollToEnd({ animated: true });
+    }
   };
 
   // Modifier le nom d'un joueur
@@ -103,7 +111,6 @@ const SetupGameScreen: React.FC<Props> = ({ route, navigation }) => {
           player.hasStarted
         )
     );
-    console.log("player", validatedPlayers);
     if (validatedPlayers.length < 2) {
       alert("Veuillez ajouter au moins deux joueurs.");
       return;
@@ -121,6 +128,7 @@ const SetupGameScreen: React.FC<Props> = ({ route, navigation }) => {
         <SafeAreaView style={styles.safeArea}>
           {/* Section défilable */}
           <ScrollView
+            ref={scrollViewRef}
             style={styles.scrollContainer}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"

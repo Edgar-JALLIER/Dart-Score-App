@@ -15,6 +15,8 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { HeaderBackButton } from "@react-navigation/elements";
 import { gameReducer } from "../types/gameReducer";
+import FinishHelper from "../components/InGame/FinishHelper";
+import { findSuggestion } from "../utils/501/gameHelper";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Game">;
 
@@ -27,8 +29,28 @@ const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     gameType: route.params.mode,
     isFinished: false,
     winner: null,
+    suggestion: null,
   });
-  console.log("STATE in GAME", state);
+
+  const { players, currentPlayerIndex, currentRound, gameType } = state;
+
+  // Recalculer la suggestion
+  const throwsLeft =
+    gameType.maxThrowsPerTurn -
+    players[currentPlayerIndex].throws.filter((t) => t.round === currentRound)
+      .length;
+  const NewSuggestion = findSuggestion(
+    players[currentPlayerIndex].score,
+    throwsLeft
+  );
+
+  useEffect(() => {
+    dispatch({
+      type: "SET_SUGGESTION",
+      suggestion: NewSuggestion,
+    });
+  }, [players, currentRound, currentPlayerIndex, gameType]);
+
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
@@ -66,6 +88,7 @@ const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     if (state.isFinished) {
       return;
     }
+
     dispatch({
       type: "NEXT_PLAYER",
       payload: { maxThrowsPerTurn: state.gameType.maxThrowsPerTurn },
@@ -97,7 +120,12 @@ const GameScreen: React.FC<Props> = ({ route, navigation }) => {
           <PlayerScore playerScoreGame={state} />
 
           {!state.isFinished ? (
-            <ScoreInput onScoreSubmit={handleScoreSubmit} />
+            <>
+              {state.suggestion && (
+                <FinishHelper suggestion={state.suggestion} />
+              )}
+              <ScoreInput onScoreSubmit={handleScoreSubmit} />
+            </>
           ) : (
             <View style={styles.winnerContainer}>
               <Text style={styles.winnerText}>
